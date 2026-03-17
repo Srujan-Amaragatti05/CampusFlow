@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CampusFlow — Command Center</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#060810;
+  --s1:#0d1120;
+  --s2:#111827;
+  --s3:#1a2235;
+  --border:rgba(99,120,255,.15);
+  --border2:rgba(99,120,255,.3);
+  --purple:#7c6aff;
+  --teal:#00e5b0;
+  --amber:#ffb830;
+  --red:#ff5757;
+  --pink:#ff61a6;
+  --blue:#4da6ff;
+  --text:#e8eef8;
+  --muted:#6b7a99;
+  --mono:'JetBrains Mono',monospace;
+  --sans:'Space Grotesk',sans-serif;
+}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* ── Noise texture overlay ── */
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:0;opacity:.4
+}
+
+/* ── Ambient glow blobs ── */
+.glow-blob{position:fixed;border-radius:50%;filter:blur(120px);opacity:.07;pointer-events:none;z-index:0}
+.glow-blob.g1{width:600px;height:600px;background:var(--purple);top:-200px;left:-100px}
+.glow-blob.g2{width:500px;height:500px;background:var(--teal);bottom:-150px;right:-100px}
+.glow-blob.g3{width:400px;height:400px;background:var(--amber);top:40%;left:40%}
+
+/* ── Header ── */
+header{
+  position:sticky;top:0;z-index:100;
+  background:rgba(6,8,16,.85);backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);
+  padding:0 32px;height:64px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.logo{display:flex;align-items:center;gap:14px}
+.logo-mark{
+  width:42px;height:42px;border-radius:12px;
+  background:linear-gradient(135deg,var(--purple),var(--teal));
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;box-shadow:0 0 20px rgba(124,106,255,.4)
+}
+.logo-text h1{font-size:18px;font-weight:700;letter-spacing:-.02em}
+.logo-text p{font-size:11px;color:var(--muted);font-family:var(--mono)}
+.header-right{display:flex;align-items:center;gap:16px}
+.live-pill{
+  display:flex;align-items:center;gap:6px;
+  background:rgba(0,229,176,.08);border:1px solid rgba(0,229,176,.25);
+  border-radius:20px;padding:5px 12px;font-size:12px;color:var(--teal);font-weight:600
+}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--teal);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.2)}}
+.time-display{font-family:var(--mono);font-size:13px;color:var(--muted)}
+
+/* ── Layout ── */
+.layout{
+  position:relative;z-index:1;
+  max-width:1400px;margin:0 auto;
+  padding:28px 24px;
+  display:grid;
+  grid-template-columns:240px 1fr 320px;
+  gap:20px;
+  align-items:start
+}
+@media(max-width:1200px){.layout{grid-template-columns:1fr 320px}}
+@media(max-width:800px){.layout{grid-template-columns:1fr}}
+
+/* ── Sidebar ── */
+.sidebar{display:flex;flex-direction:column;gap:12px}
+@media(max-width:1200px){.sidebar{display:none}}
+
+.nav-card{
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:16px;padding:20px 16px
+}
+.nav-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px}
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 10px;border-radius:10px;
+  font-size:13px;cursor:pointer;transition:background .15s;margin-bottom:2px
+}
+.nav-item:hover{background:var(--s3)}
+.nav-item.active{background:rgba(124,106,255,.15);color:var(--purple)}
+.nav-icon{width:16px;text-align:center;font-size:14px}
+
+.xp-card{
+  background:linear-gradient(135deg,rgba(124,106,255,.1),rgba(0,229,176,.05));
+  border:1px solid var(--border2);border-radius:16px;padding:20px
+}
+.xp-label{font-size:11px;color:var(--muted);margin-bottom:4px}
+.xp-level{font-size:22px;font-weight:700;color:var(--purple)}
+.xp-name{font-size:12px;color:var(--muted);margin-bottom:12px}
+.xp-bar-track{height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden}
+.xp-bar-fill{height:100%;background:linear-gradient(90deg,var(--purple),var(--teal));border-radius:3px;transition:width 1s ease}
+.xp-sub{font-size:11px;color:var(--muted);margin-top:6px;font-family:var(--mono)}
+
+/* ── Main area ── */
+.main{display:flex;flex-direction:column;gap:18px}
+
+/* ── Stats row ── */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media(max-width:900px){.stats-row{grid-template-columns:repeat(2,1fr)}}
+
+.stat{
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:14px;padding:18px 20px;
+  position:relative;overflow:hidden;cursor:default;
+  transition:border-color .2s,transform .2s
+}
+.stat:hover{border-color:var(--border2);transform:translateY(-2px)}
+.stat::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--accent-color),transparent);
+  opacity:0;transition:opacity .2s
+}
+.stat:hover::before{opacity:1}
+.stat-icon{font-size:20px;margin-bottom:10px}
+.stat-val{font-size:28px;font-weight:700;font-family:var(--mono);line-height:1}
+.stat-label{font-size:12px;color:var(--muted);margin-top:4px}
+.stat-trend{
+  position:absolute;top:14px;right:14px;
+  font-size:11px;font-weight:600;font-family:var(--mono)
+}
+
+/* ── Section header ── */
+.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.section-title{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px}
+.chip{
+  font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;
+  text-transform:uppercase;letter-spacing:.05em
+}
+.chip-purple{background:rgba(124,106,255,.15);color:var(--purple)}
+.chip-teal{background:rgba(0,229,176,.1);color:var(--teal)}
+.chip-amber{background:rgba(255,184,48,.1);color:var(--amber)}
+.chip-red{background:rgba(255,87,87,.1);color:var(--red)}
+
+/* ── Card ── */
+.card{
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:16px;padding:20px
+}
+
+/* ── Events ── */
+.event-row{
+  display:flex;align-items:center;gap:14px;
+  padding:12px 0;border-bottom:1px solid rgba(255,255,255,.04)
+}
+.event-row:last-child{border-bottom:none}
+.event-time{
+  font-family:var(--mono);font-size:12px;color:var(--muted);
+  width:52px;flex-shrink:0;text-align:right
+}
+.event-bar{width:3px;height:36px;border-radius:2px;flex-shrink:0}
+.event-info{flex:1;min-width:0}
+.event-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.event-meta{font-size:11px;color:var(--muted);margin-top:2px}
+.event-badge{
+  font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;
+  flex-shrink:0;text-transform:uppercase
+}
+
+/* ── Heatmap ── */
+.heatmap-grid{
+  display:grid;
+  grid-template-columns:repeat(13,1fr);
+  gap:3px;
+}
+.heatmap-cell{
+  aspect-ratio:1;border-radius:3px;
+  background:var(--s3);transition:transform .1s
+}
+.heatmap-cell:hover{transform:scale(1.3);z-index:1}
+.heatmap-cell.l1{background:rgba(124,106,255,.2)}
+.heatmap-cell.l2{background:rgba(124,106,255,.4)}
+.heatmap-cell.l3{background:rgba(124,106,255,.7)}
+.heatmap-cell.l4{background:var(--purple)}
+.heatmap-months{
+  display:flex;justify-content:space-between;
+  font-size:10px;color:var(--muted);margin-bottom:6px;font-family:var(--mono)
+}
+
+/* ── Gamification ── */
+.badge-grid{display:flex;flex-wrap:wrap;gap:8px}
+.badge-item{
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  background:var(--s2);border:1px solid var(--border);border-radius:12px;
+  padding:10px 14px;cursor:default;transition:border-color .2s,transform .15s
+}
+.badge-item:hover{border-color:var(--border2);transform:scale(1.05)}
+.badge-item.locked{opacity:.3;filter:grayscale(1)}
+.badge-emoji{font-size:22px}
+.badge-name{font-size:10px;font-weight:600;color:var(--muted);text-align:center}
+.badge-xp{font-size:9px;color:var(--purple);font-family:var(--mono)}
+
+/* ── Streak ring ── */
+.streak-ring-wrap{display:flex;align-items:center;gap:20px}
+.streak-ring{position:relative;width:90px;height:90px}
+.streak-ring svg{transform:rotate(-90deg)}
+.streak-ring .ring-track{fill:none;stroke:rgba(255,255,255,.06);stroke-width:8}
+.streak-ring .ring-fill{fill:none;stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset 1s ease}
+.streak-number{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+}
+.streak-val{font-size:22px;font-weight:700;font-family:var(--mono);line-height:1}
+.streak-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.streak-info{flex:1}
+.streak-title{font-size:16px;font-weight:700;margin-bottom:4px}
+.streak-sub{font-size:12px;color:var(--muted);line-height:1.6}
+
+/* ── Leaderboard ── */
+.lb-row{
+  display:flex;align-items:center;gap:12px;
+  padding:10px 0;border-bottom:1px solid rgba(255,255,255,.04)
+}
+.lb-row:last-child{border-bottom:none}
+.lb-rank{font-family:var(--mono);font-size:13px;font-weight:700;width:24px;flex-shrink:0}
+.lb-rank.gold{color:var(--amber)}
+.lb-rank.silver{color:#aab}
+.lb-rank.bronze{color:#c96}
+.lb-avatar{
+  width:32px;height:32px;border-radius:50%;
+  background:var(--s3);display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700;flex-shrink:0
+}
+.lb-name{flex:1;font-size:13px;font-weight:500}
+.lb-sub{font-size:11px;color:var(--muted)}
+.lb-xp{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--purple)}
+.lb-bar{
+  width:60px;height:4px;background:var(--s3);border-radius:2px;overflow:hidden
+}
+.lb-bar-fill{height:100%;background:linear-gradient(90deg,var(--purple),var(--teal));border-radius:2px}
+
+/* ── Flow diagram ── */
+.flow-container{
+  display:flex;align-items:center;gap:0;overflow-x:auto;
+  padding:4px 0 12px;scrollbar-width:none
+}
+.flow-node{
+  flex-shrink:0;
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:12px;padding:12px 16px;min-width:110px;
+  text-align:center
+}
+.flow-node-icon{font-size:20px;margin-bottom:6px}
+.flow-node-label{font-size:11px;font-weight:600;color:var(--text)}
+.flow-node-sub{font-size:10px;color:var(--muted)}
+.flow-connector{
+  flex-shrink:0;display:flex;align-items:center;
+  padding:0 4px;position:relative
+}
+.flow-arrow-line{
+  width:40px;height:2px;
+  background:linear-gradient(90deg,var(--border2),transparent);
+  position:relative
+}
+.flow-arrow-line::after{
+  content:'';position:absolute;right:-1px;top:-4px;
+  border:5px solid transparent;border-left-color:var(--border2)
+}
+.flow-node.active{
+  border-color:var(--purple);
+  box-shadow:0 0 20px rgba(124,106,255,.2)
+}
+.flow-node.active .flow-node-label{color:var(--purple)}
+
+/* ── WhatsApp simulator ── */
+.sim-window{
+  background:#070d0a;border-radius:12px;border:1px solid rgba(0,229,176,.1);
+  height:300px;overflow-y:auto;padding:14px;
+  display:flex;flex-direction:column;gap:8px;margin-bottom:12px;
+  scrollbar-width:thin;scrollbar-color:var(--s3) transparent
+}
+.bubble{
+  max-width:82%;padding:9px 13px;border-radius:14px;
+  font-size:13px;line-height:1.5;animation:bubbleIn .2s ease
+}
+@keyframes bubbleIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.b-in{background:var(--s2);align-self:flex-start;border-bottom-left-radius:3px}
+.b-out{background:rgba(124,106,255,.25);border:1px solid rgba(124,106,255,.3);align-self:flex-end;border-bottom-right-radius:3px}
+.b-bot{background:rgba(0,229,176,.08);border:1px solid rgba(0,229,176,.15);color:#b0f0e0;align-self:flex-start;border-bottom-left-radius:3px}
+.b-typing{align-self:flex-start}
+.typing-dots{display:flex;gap:4px;padding:4px 0}
+.typing-dots span{
+  width:6px;height:6px;border-radius:50%;background:var(--muted);
+  animation:dot .8s infinite
+}
+.typing-dots span:nth-child(2){animation-delay:.2s}
+.typing-dots span:nth-child(3){animation-delay:.4s}
+@keyframes dot{0%,80%,100%{opacity:.3;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
+.sim-input-row{display:flex;gap:8px;align-items:center}
+.sim-input{
+  flex:1;background:var(--s2);border:1px solid var(--border);
+  border-radius:24px;padding:10px 16px;color:var(--text);
+  font:13px var(--sans);outline:none;transition:border-color .2s
+}
+.sim-input:focus{border-color:var(--border2)}
+.sim-send{
+  width:40px;height:40px;border-radius:50%;border:none;
+  background:linear-gradient(135deg,var(--purple),var(--teal));
+  color:#fff;cursor:pointer;font-size:16px;
+  display:flex;align-items:center;justify-content:center;
+  transition:opacity .2s,transform .15s
+}
+.sim-send:hover{opacity:.85;transform:scale(1.05)}
+.quick-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.qtag{
+  font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;cursor:pointer;
+  background:var(--s2);border:1px solid var(--border);color:var(--muted);
+  transition:all .15s
+}
+.qtag:hover{border-color:var(--border2);color:var(--text)}
+
+/* ── Exam countdown ── */
+.exam-item{
+  background:var(--s2);border:1px solid var(--border);border-radius:12px;
+  padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:14px
+}
+.exam-days{
+  font-family:var(--mono);font-weight:700;font-size:22px;
+  min-width:36px;text-align:center;
+}
+.exam-unit{font-size:9px;color:var(--muted);display:block;text-align:center;text-transform:uppercase}
+.exam-sep{width:1px;height:36px;background:var(--border)}
+.exam-name{font-size:13px;font-weight:600;flex:1}
+.exam-date{font-size:11px;color:var(--muted)}
+.urgency-bar{width:4px;height:40px;border-radius:2px;flex-shrink:0}
+
+/* ── Insights ── */
+.insight-block{
+  background:var(--s2);border-radius:12px;border:1px solid var(--border);
+  padding:14px 16px;margin-bottom:10px
+}
+.insight-tag{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;font-family:var(--mono)}
+.insight-text{font-size:13px;line-height:1.7}
+.workload-meter{
+  display:flex;align-items:center;gap:10px;margin-top:10px
+}
+.meter-track{flex:1;height:8px;background:var(--s3);border-radius:4px;overflow:hidden}
+.meter-fill{height:100%;border-radius:4px;transition:width 1.2s cubic-bezier(.34,1.56,.64,1)}
+.meter-label{font-family:var(--mono);font-size:11px;font-weight:700;width:40px;text-align:right}
+
+/* ── Conflict alert ── */
+.conflict-alert{
+  background:rgba(255,87,87,.06);border:1px solid rgba(255,87,87,.2);
+  border-radius:12px;padding:14px 16px;margin-bottom:12px;
+  display:flex;gap:12px;align-items:flex-start
+}
+.conflict-icon{font-size:20px;flex-shrink:0}
+.conflict-text{font-size:13px;line-height:1.6}
+.conflict-text strong{color:var(--red)}
+
+/* ── Animations ── */
+@keyframes fadeSlideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.animate-in{animation:fadeSlideUp .4s ease forwards}
+.animate-in:nth-child(2){animation-delay:.05s}
+.animate-in:nth-child(3){animation-delay:.1s}
+.animate-in:nth-child(4){animation-delay:.15s}
+
+/* ── Right sidebar ── */
+.right-col{display:flex;flex-direction:column;gap:16px}
+
+/* ── Scrollbars ── */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--s3);border-radius:2px}
+</style>
+</head>
+<body>
+
+<div class="glow-blob g1"></div>
+<div class="glow-blob g2"></div>
+<div class="glow-blob g3"></div>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">🎓</div>
+    <div class="logo-text">
+      <h1>CampusFlow</h1>
+      <p>AI COMMAND CENTER</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="live-pill"><div class="live-dot"></div> LIVE</div>
+    <div class="time-display" id="clock">--:--:--</div>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- Left Sidebar -->
+  <aside class="sidebar">
+    <div class="xp-card" id="xp-card">
+      <div class="xp-label">YOUR LEVEL</div>
+      <div class="xp-level" id="sb-level">Lv 1</div>
+      <div class="xp-name" id="sb-levelname">Freshman</div>
+      <div class="xp-bar-track"><div class="xp-bar-fill" id="sb-xpbar" style="width:20%"></div></div>
+      <div class="xp-sub" id="sb-xpsub">0 / 200 XP</div>
+    </div>
+
+    <div class="nav-card">
+      <div class="nav-label">Navigation</div>
+      <div class="nav-item active"><span class="nav-icon">📊</span> Dashboard</div>
+      <div class="nav-item"><span class="nav-icon">📅</span> Events</div>
+      <div class="nav-item"><span class="nav-icon">🎯</span> Focus</div>
+      <div class="nav-item"><span class="nav-icon">🏅</span> Badges</div>
+      <div class="nav-item"><span class="nav-icon">🏆</span> Leaderboard</div>
+      <div class="nav-item"><span class="nav-icon">⚙️</span> Settings</div>
+    </div>
+
+    <!-- Streak ring -->
+    <div class="card">
+      <div class="section-head">
+        <div class="section-title">🔥 Streak</div>
+        <div class="chip chip-amber">DAILY</div>
+      </div>
+      <div class="streak-ring-wrap">
+        <div class="streak-ring">
+          <svg viewBox="0 0 90 90" width="90" height="90">
+            <circle class="ring-track" cx="45" cy="45" r="37"/>
+            <circle class="ring-fill" cx="45" cy="45" r="37"
+              id="streak-circle"
+              stroke="url(#streakGrad)"
+              stroke-dasharray="232.5"
+              stroke-dashoffset="232.5"/>
+            <defs>
+              <linearGradient id="streakGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#ffb830"/>
+                <stop offset="100%" stop-color="#ff5757"/>
+              </linearGradient>
+            </defs>
+          </svg>
+          <div class="streak-number">
+            <div class="streak-val" id="streak-val">0</div>
+            <div class="streak-lbl">days</div>
+          </div>
+        </div>
+        <div class="streak-info">
+          <div class="streak-title" id="streak-title">Keep Going!</div>
+          <div class="streak-sub" id="streak-sub">Log in daily to build your streak</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Column -->
+  <main class="main">
+
+    <!-- Stats row -->
+    <div class="stats-row">
+      <div class="stat animate-in" style="--accent-color:var(--purple)">
+        <div class="stat-icon">📅</div>
+        <div class="stat-val" id="stat-events" style="color:var(--purple)">—</div>
+        <div class="stat-label">Active Events</div>
+        <div class="stat-trend" style="color:var(--teal)">+2 today</div>
+      </div>
+      <div class="stat animate-in" style="--accent-color:var(--teal)">
+        <div class="stat-icon">🎯</div>
+        <div class="stat-val" id="stat-focus" style="color:var(--teal)">—</div>
+        <div class="stat-label">Focus Sessions</div>
+        <div class="stat-trend" style="color:var(--teal)">25min each</div>
+      </div>
+      <div class="stat animate-in" style="--accent-color:var(--amber)">
+        <div class="stat-icon">👥</div>
+        <div class="stat-val" id="stat-users" style="color:var(--amber)">—</div>
+        <div class="stat-label">Students</div>
+        <div class="stat-trend" style="color:var(--muted)">via WhatsApp</div>
+      </div>
+      <div class="stat animate-in" style="--accent-color:var(--red)">
+        <div class="stat-icon">⚡</div>
+        <div class="stat-val" id="stat-today" style="color:var(--red)">—</div>
+        <div class="stat-label">Due Today</div>
+        <div class="stat-trend" style="color:var(--red)" id="stat-overdue"></div>
+      </div>
+    </div>
+
+    <!-- Architecture Flow -->
+    <div class="card animate-in">
+      <div class="section-head">
+        <div class="section-title">⚡ System Architecture</div>
+        <div class="chip chip-teal">LIVE FLOW</div>
+      </div>
+      <div class="flow-container">
+        <div class="flow-node active">
+          <div class="flow-node-icon">📱</div>
+          <div class="flow-node-label">WhatsApp</div>
+          <div class="flow-node-sub">Twilio Sandbox</div>
+        </div>
+        <div class="flow-connector"><div class="flow-arrow-line"></div></div>
+        <div class="flow-node">
+          <div class="flow-node-icon">🔗</div>
+          <div class="flow-node-label">Webhook</div>
+          <div class="flow-node-sub">Express POST</div>
+        </div>
+        <div class="flow-connector"><div class="flow-arrow-line"></div></div>
+        <div class="flow-node">
+          <div class="flow-node-icon">🧩</div>
+          <div class="flow-node-label">Conflict Check</div>
+          <div class="flow-node-sub">Auto-detect</div>
+        </div>
+        <div class="flow-connector"><div class="flow-arrow-line"></div></div>
+        <div class="flow-node">
+          <div class="flow-node-icon">🤖</div>
+          <div class="flow-node-label">Groq AI</div>
+          <div class="flow-node-sub">Llama3-8b</div>
+        </div>
+        <div class="flow-connector"><div class="flow-arrow-line"></div></div>
+        <div class="flow-node">
+          <div class="flow-node-icon">📅</div>
+          <div class="flow-node-label">G Calendar</div>
+          <div class="flow-node-sub">Auto-create</div>
+        </div>
+        <div class="flow-connector"><div class="flow-arrow-line"></div></div>
+        <div class="flow-node">
+          <div class="flow-node-icon">🔄</div>
+          <div class="flow-node-label">n8n</div>
+          <div class="flow-node-sub">Automation</div>
+        </div>
+        <div class="flow-connector"><div class="flow-arrow-line"></div></div>
+        <div class="flow-node">
+          <div class="flow-node-icon">🏅</div>
+          <div class="flow-node-label">Gamify</div>
+          <div class="flow-node-sub">XP + Badges</div>
+        </div>
+        <div class="flow-connector"><div class="flow-arrow-line"></div></div>
+        <div class="flow-node">
+          <div class="flow-node-icon">🔔</div>
+          <div class="flow-node-label">Reminder</div>
+          <div class="flow-node-sub">WhatsApp</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Activity Heatmap -->
+    <div class="card animate-in">
+      <div class="section-head">
+        <div class="section-title">📊 Activity Heatmap</div>
+        <div class="chip chip-purple">LAST 3 MONTHS</div>
+      </div>
+      <div class="heatmap-months" id="hm-months"></div>
+      <div class="heatmap-grid" id="heatmap"></div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:10px;font-size:11px;color:var(--muted)">
+        <span>Less</span>
+        <div style="width:12px;height:12px;border-radius:2px;background:var(--s3)"></div>
+        <div style="width:12px;height:12px;border-radius:2px;background:rgba(124,106,255,.2)"></div>
+        <div style="width:12px;height:12px;border-radius:2px;background:rgba(124,106,255,.4)"></div>
+        <div style="width:12px;height:12px;border-radius:2px;background:rgba(124,106,255,.7)"></div>
+        <div style="width:12px;height:12px;border-radius:2px;background:var(--purple)"></div>
+        <span>More</span>
+      </div>
+    </div>
+
+    <!-- Upcoming Events -->
+    <div class="card animate-in">
+      <div class="section-head">
+        <div class="section-title">📋 Upcoming Events</div>
+        <div class="chip chip-teal">FIREBASE</div>
+      </div>
+      <div id="events-list"><div style="color:var(--muted);font-size:13px;padding:20px 0;text-align:center">Loading events...</div></div>
+    </div>
+
+    <!-- Badges -->
+    <div class="card animate-in">
+      <div class="section-head">
+        <div class="section-title">🏅 Achievement Badges</div>
+        <div class="chip chip-amber">GAMIFICATION</div>
+      </div>
+      <div class="badge-grid" id="badges-grid">
+        <!-- populated by JS -->
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Right Column -->
+  <div class="right-col">
+
+    <!-- WhatsApp Simulator -->
+    <div class="card">
+      <div class="section-head">
+        <div class="section-title">📱 WhatsApp Simulator</div>
+        <div class="chip chip-teal">TWILIO</div>
+      </div>
+
+      <div class="sim-window" id="chat-window">
+        <div class="bubble b-bot" style="white-space:pre-line">👋 Hi! I'm CampusFlow AI.
+
+Try: "Math exam tomorrow 10 AM"
+Or type <strong>help</strong> for all commands!</div>
+      </div>
+
+      <div class="sim-input-row">
+        <input class="sim-input" id="chat-input"
+          placeholder="Type a reminder..."
+          onkeydown="if(event.key==='Enter')sendSim()"/>
+        <button class="sim-send" onclick="sendSim()">➤</button>
+      </div>
+
+      <div class="quick-tags">
+        <span class="qtag" onclick="fill('Math exam tomorrow at 10 AM')">📝 Exam</span>
+        <span class="qtag" onclick="fill('Class 2pm to 4pm Friday')">🏫 Class</span>
+        <span class="qtag" onclick="fill('focus Data Structures')">🎯 Focus</span>
+        <span class="qtag" onclick="fill('brief')">🌅 Brief</span>
+        <span class="qtag" onclick="fill('stats')">📊 Stats</span>
+        <span class="qtag" onclick="fill('exams')">⏳ Exams</span>
+        <span class="qtag" onclick="fill('badges')">🏅 Badges</span>
+        <span class="qtag" onclick="fill('leaderboard')">🏆 Board</span>
+      </div>
+    </div>
+
+    <!-- Exam Countdowns -->
+    <div class="card">
+      <div class="section-head">
+        <div class="section-title">⏳ Exam Countdowns</div>
+        <div class="chip chip-red">URGENT</div>
+      </div>
+      <div id="exam-list">
+        <!-- demo data -->
+      </div>
+    </div>
+
+    <!-- AI Insights -->
+    <div class="card">
+      <div class="section-head">
+        <div class="section-title">🤖 AI Insights</div>
+        <div class="chip chip-purple">GROQ AI</div>
+      </div>
+      <div id="insights-block">
+        <div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">Generating insights...</div>
+      </div>
+    </div>
+
+    <!-- Leaderboard -->
+    <div class="card">
+      <div class="section-head">
+        <div class="section-title">🏆 Leaderboard</div>
+        <div class="chip chip-amber">TOP STUDENTS</div>
+      </div>
+      <div id="leaderboard-list"></div>
+    </div>
+
+    <!-- New Features Panel -->
+    <div class="card" style="border-color:rgba(0,229,176,.2)">
+      <div class="section-head">
+        <div class="section-title">✨ New Features</div>
+        <div class="chip chip-teal">v2.0</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="insight-block" style="margin:0">
+          <div class="insight-tag">🧩 Conflict Detection</div>
+          <div class="insight-text" style="font-size:12px">Auto-detects schedule overlaps and suggests free slots</div>
+        </div>
+        <div class="insight-block" style="margin:0">
+          <div class="insight-tag">🎯 Pomodoro Focus Mode</div>
+          <div class="insight-text" style="font-size:12px">25-min focus sessions with XP rewards via WhatsApp</div>
+        </div>
+        <div class="insight-block" style="margin:0">
+          <div class="insight-tag">🎮 Gamification System</div>
+          <div class="insight-text" style="font-size:12px">XP, levels (Freshman→Legend), streaks, 12+ badges</div>
+        </div>
+        <div class="insight-block" style="margin:0">
+          <div class="insight-tag">👥 Group Study Finder</div>
+          <div class="insight-text" style="font-size:12px">Finds common free slots across multiple students</div>
+        </div>
+        <div class="insight-block" style="margin:0">
+          <div class="insight-tag">🧠 Procrastination Detector</div>
+          <div class="insight-text" style="font-size:12px">AI detects overdue tasks and sends caring nudges</div>
+        </div>
+        <div class="insight-block" style="margin:0">
+          <div class="insight-tag">🌅 Smart Daily Brief</div>
+          <div class="insight-text" style="font-size:12px">Personalized morning summary delivered via WhatsApp at 8 AM</div>
+        </div>
+        <div class="insight-block" style="margin:0">
+          <div class="insight-tag">♻️ AI Rescheduler</div>
+          <div class="insight-text" style="font-size:12px">AI picks the best time to reschedule any task</div>
+        </div>
+        <div class="insight-block" style="margin:0">
+          <div class="insight-tag">📊 Activity Heatmap</div>
+          <div class="insight-text" style="font-size:12px">GitHub-style calendar showing your productivity history</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:3000/api';
+
+// ── Clock ──────────────────────────────────────────────
+function updateClock(){
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── Heatmap ────────────────────────────────────────────
+function buildHeatmap(){
+  const grid = document.getElementById('heatmap');
+  const months = document.getElementById('hm-months');
+  const totalCells = 13 * 7; // 13 weeks × 7 days
+  const levels = [0,0,0,1,1,2,2,3,4];
+
+  for(let i=0;i<totalCells;i++){
+    const cell = document.createElement('div');
+    cell.className = 'heatmap-cell';
+    const rand = Math.random();
+    if(rand > .7){
+      const lvl = levels[Math.floor(Math.random()*levels.length)];
+      if(lvl>0) cell.classList.add('l'+lvl);
+    }
+    grid.appendChild(cell);
+  }
+
+  // Month labels
+  const mths = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const now = new Date();
+  const labels = [];
+  for(let i=2;i>=0;i--){
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    labels.push(mths[d.getMonth()]);
+  }
+  labels.forEach(l => {
+    const s = document.createElement('span');
+    s.textContent = l;
+    months.appendChild(s);
+  });
+}
+buildHeatmap();
+
+// ── Demo Data ──────────────────────────────────────────
+const DEMO_EVENTS = [
+  {title:'AI Assignment Submission',date:dayOffset(1),time:'17:00',duration:30,priority:'high',category:'assignment'},
+  {title:'Math Exam',date:dayOffset(2),time:'09:00',duration:180,priority:'high',category:'exam'},
+  {title:'Project Demo',date:dayOffset(2),time:'14:00',duration:60,priority:'medium',category:'meeting'},
+  {title:'Lab Report',date:dayOffset(4),time:'18:00',duration:30,priority:'medium',category:'assignment'},
+  {title:'Algorithms Lecture',date:dayOffset(4),time:'10:00',duration:120,priority:'low',category:'lecture'},
+  {title:'Physics Exam',date:dayOffset(7),time:'09:00',duration:180,priority:'high',category:'exam'},
+];
+
+const DEMO_LEADERBOARD = [
+  {phone:'+91...4521',level:5,levelName:'Graduate',xp:2340,streak:12},
+  {phone:'+91...8832',level:4,levelName:'Senior',xp:1820,streak:7},
+  {phone:'+91...2291',level:3,levelName:'Junior',xp:1100,streak:5},
+  {phone:'+91...7743',level:2,levelName:'Sophomore',xp:650,streak:3},
+  {phone:'+91...9901',level:1,levelName:'Freshman',xp:280,streak:1},
+];
+
+const ALL_BADGES = [
+  {id:'first_event',name:'First Step',emoji:'🎯',xp:50,earned:true},
+  {id:'streak_3',name:'On Fire',emoji:'🔥',xp:100,earned:true},
+  {id:'events_10',name:'Planner',emoji:'📅',xp:150,earned:true},
+  {id:'focus_1',name:'Focused',emoji:'🎯',xp:75,earned:true},
+  {id:'early_bird',name:'Early Bird',emoji:'🌅',xp:100,earned:false},
+  {id:'streak_7',name:'Week Warrior',emoji:'⚡',xp:250,earned:false},
+  {id:'no_conflicts',name:'Smart Planner',emoji:'🧠',xp:200,earned:false},
+  {id:'focus_10',name:'Deep Work',emoji:'🧘',xp:300,earned:false},
+  {id:'events_50',name:'Scheduler Pro',emoji:'🗓',xp:500,earned:false},
+  {id:'all_categories',name:'Renaissance',emoji:'🎓',xp:300,earned:false},
+  {id:'streak_30',name:'Unstoppable',emoji:'🏆',xp:1000,earned:false},
+  {id:'night_owl',name:'Night Owl',emoji:'🦉',xp:100,earned:false},
+];
+
+function dayOffset(n){
+  const d = new Date();
+  d.setDate(d.getDate()+n);
+  return d.toISOString().split('T')[0];
+}
+
+// ── Load Dashboard ─────────────────────────────────────
+async function loadDashboard(){
+  try{
+    const res = await fetch(`${API}/dashboard`);
+    const data = await res.json();
+    document.getElementById('stat-events').textContent = data.stats?.totalActiveEvents ?? '0';
+    document.getElementById('stat-users').textContent  = data.stats?.totalUsers ?? '0';
+    document.getElementById('stat-today').textContent  = data.stats?.eventsToday ?? '0';
+    renderEvents(data.upcomingEvents || DEMO_EVENTS);
+  }catch{
+    document.getElementById('stat-events').textContent = '7';
+    document.getElementById('stat-users').textContent  = '3';
+    document.getElementById('stat-today').textContent  = '2';
+    renderEvents(DEMO_EVENTS);
+  }
+  document.getElementById('stat-focus').textContent = '14';
+}
+
+async function loadInsights(){
+  renderInsights({
+    workload:{riskLevel:'medium',message:'5 tasks this week with 2 high-priority items. Spread your study sessions for best results.'},
+    productivity:'You\'re in good shape! Tackling high-priority items first reduces stress. Keep it up! 🚀',
+  });
+}
+
+// ── Render Functions ───────────────────────────────────
+function renderEvents(events){
+  const el = document.getElementById('events-list');
+  const colors = {high:'#ff5757',medium:'#ffb830',low:'#00e5b0'};
+  const catEmoji = {assignment:'📝',exam:'📚',lecture:'🏫',meeting:'👥',personal:'🌟',other:'📌'};
+
+  el.innerHTML = events.map(e=>`
+    <div class="event-row">
+      <div class="event-time">${e.time}</div>
+      <div class="event-bar" style="background:${colors[e.priority]||'#888'}"></div>
+      <div class="event-info">
+        <div class="event-name">${catEmoji[e.category]||'📌'} ${e.title}</div>
+        <div class="event-meta">${e.date} · ${e.duration||60}min · ${e.category}</div>
+      </div>
+      <div class="event-badge" style="background:${colors[e.priority]+'22'};color:${colors[e.priority]}">${e.priority}</div>
+    </div>
+  `).join('');
+}
+
+function renderInsights(ins){
+  const el = document.getElementById('insights-block');
+  const w = ins.workload||{};
+  const pct = w.riskLevel==='high'?85:w.riskLevel==='medium'?50:25;
+  const col = w.riskLevel==='high'?'#ff5757':w.riskLevel==='medium'?'#ffb830':'#00e5b0';
+
+  el.innerHTML = `
+    <div class="insight-block">
+      <div class="insight-tag">WORKLOAD STATUS</div>
+      <div class="insight-text">${w.message||'Workload looks manageable!'}</div>
+      <div class="workload-meter">
+        <div class="meter-track"><div class="meter-fill" style="width:${pct}%;background:${col}"></div></div>
+        <div class="meter-label" style="color:${col}">${w.riskLevel?.toUpperCase()||'LOW'}</div>
+      </div>
+    </div>
+    ${ins.productivity?`
+    <div class="insight-block">
+      <div class="insight-tag">PRODUCTIVITY INSIGHT</div>
+      <div class="insight-text">${ins.productivity}</div>
+    </div>`:''}
+  `;
+}
+
+function renderBadges(){
+  const el = document.getElementById('badges-grid');
+  el.innerHTML = ALL_BADGES.map(b=>`
+    <div class="badge-item ${b.earned?'':'locked'}" title="${b.earned?'Earned!':'Locked — keep going!'}">
+      <div class="badge-emoji">${b.emoji}</div>
+      <div class="badge-name">${b.name}</div>
+      <div class="badge-xp">+${b.xp} XP</div>
+    </div>
+  `).join('');
+}
+
+function renderLeaderboard(){
+  const el = document.getElementById('leaderboard-list');
+  const rankCls = ['gold','silver','bronze','',''];
+  const maxXP = DEMO_LEADERBOARD[0].xp;
+  const colors = ['var(--amber)','#aab0c0','#c89060','var(--muted)','var(--muted)'];
+
+  el.innerHTML = DEMO_LEADERBOARD.map((p,i)=>`
+    <div class="lb-row">
+      <div class="lb-rank ${rankCls[i]}">${['🥇','🥈','🥉','4','5'][i]}</div>
+      <div class="lb-avatar" style="background:${['rgba(124,106,255,.2)','rgba(170,176,192,.15)','rgba(200,144,96,.15)','var(--s3)','var(--s3)'][i]};color:${colors[i]}">
+        ${p.phone.slice(-2)}
+      </div>
+      <div style="flex:1">
+        <div class="lb-name">Student ${i+1}</div>
+        <div class="lb-sub">Lv${p.level} ${p.levelName} · 🔥${p.streak}d</div>
+      </div>
+      <div style="text-align:right">
+        <div class="lb-xp">${p.xp}</div>
+        <div class="lb-bar"><div class="lb-bar-fill" style="width:${Math.round(p.xp/maxXP*100)}%"></div></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderExams(){
+  const el = document.getElementById('exam-list');
+  const exams = [
+    {title:'Advanced AI Exam',date:dayOffset(2),time:'09:00',days:2,urgency:'critical'},
+    {title:'Math Analysis',date:dayOffset(5),time:'10:00',days:5,urgency:'high'},
+    {title:'Data Structures',date:dayOffset(10),time:'14:00',days:10,urgency:'medium'},
+  ];
+  const urgencyColor = {critical:'#ff5757',high:'#ffb830',medium:'#4da6ff'};
+
+  el.innerHTML = exams.map(e=>`
+    <div class="exam-item">
+      <div class="urgency-bar" style="background:${urgencyColor[e.urgency]}"></div>
+      <div>
+        <div class="exam-days" style="color:${urgencyColor[e.urgency]}">${e.days}<span class="exam-unit">days</span></div>
+      </div>
+      <div class="exam-sep"></div>
+      <div>
+        <div class="exam-name">${e.title}</div>
+        <div class="exam-date">📅 ${e.date} · ${e.time}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderStreak(n){
+  const max = 30;
+  const pct = Math.min(n/max,1);
+  const circumference = 232.5;
+  const offset = circumference - (circumference * pct);
+  const circle = document.getElementById('streak-circle');
+  if(circle) circle.style.strokeDashoffset = offset;
+
+  document.getElementById('streak-val').textContent = n;
+
+  if(n===0){
+    document.getElementById('streak-title').textContent='Start Today!';
+    document.getElementById('streak-sub').textContent='Create your first event to begin';
+  } else if(n<3){
+    document.getElementById('streak-title').textContent='Getting Started 🌱';
+    document.getElementById('streak-sub').textContent=`${n} day streak! Keep going.`;
+  } else if(n<7){
+    document.getElementById('streak-title').textContent='On Fire! 🔥';
+    document.getElementById('streak-sub').textContent=`${n} days! You're building a habit.`;
+  } else {
+    document.getElementById('streak-title').textContent='Unstoppable! ⚡';
+    document.getElementById('streak-sub').textContent=`${n} day streak! Amazing dedication.`;
+  }
+}
+
+// ── WhatsApp Simulator ─────────────────────────────────
+const win = document.getElementById('chat-window');
+
+async function sendSim(){
+  const inp = document.getElementById('chat-input');
+  const msg = inp.value.trim();
+  if(!msg)return;
+  inp.value='';
+
+  addBubble(msg,'b-out');
+  const typingEl = addTyping();
+
+  await delay(900+Math.random()*600);
+  typingEl.remove();
+
+  try{
+    const res = await fetch(`${API}/whatsapp/webhook`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({Body:msg,From:'whatsapp:+919999999999'})
+    });
+    addBubble('✅ Sent to backend! Check your actual WhatsApp.','b-bot');
+  }catch{
+    await simulateResponse(msg);
+  }
+}
+
+async function simulateResponse(msg){
+  const cmd = msg.toLowerCase().trim();
+
+  if(cmd==='help'){
+    addBubble(`🎓 *CampusFlow Commands*\n\n📌 Add events naturally\n🎯 focus [task] — Pomodoro\n📊 stats — Your stats\n🏅 badges — Achievements\n🌅 brief — Daily AI brief\n📝 exams — Countdowns\n🏆 leaderboard — Top students\n♻️ reschedule [task]\n👥 group [phones] on [date]`,'b-bot');
+  } else if(cmd==='stats'){
+    addBubble(`📊 *Your Stats*\n\n🎮 Level 2 — Sophomore\n✨ XP: 425 (75 to next level)\n🔥 Streak: 4 days (best: 7d)\n📅 Events: 12\n🎯 Focus: 6 sessions (2.5h)\n🏅 Badges: 4`,'b-bot');
+  } else if(cmd==='exams'){
+    addBubble(`📝 *Exam Countdowns*\n\n🚨 *Advanced AI Exam* — in *2 days*\n🔴 *Math Analysis* — in *5 days*\n🟡 *Data Structures* — in *10 days*`,'b-bot');
+  } else if(cmd==='badges'){
+    addBubble(`🏅 *Your Badges (4)*\n\n🎯 First Step — Created first event\n🔥 On Fire — 3-day streak\n📅 Planner — 10 events created\n🎯 Focused — First focus session`,'b-bot');
+  } else if(cmd==='leaderboard'){
+    addBubble(`🏆 *Leaderboard*\n\n🥇 ...4521 — Lv5 Graduate | 2340 XP\n🥈 ...8832 — Lv4 Senior | 1820 XP\n🥉 ...2291 — Lv3 Junior | 1100 XP\n4️⃣ ...7743 — Lv2 Sophomore | 650 XP\n5️⃣ ...9901 — Lv1 Freshman | 280 XP`,'b-bot');
+  } else if(cmd==='brief'){
+    addBubble(`🌅 *Good morning!*\n\n📅 *Today:*\n• 09:00 — Project standup 👥\n• 14:00 — Algorithms class 🏫\n\n📆 *Tomorrow:*\n• 09:00 — AI Exam 🚨\n\n💭 _"Push yourself, because no one else will."_`,'b-bot');
+  } else if(cmd.startsWith('focus')){
+    const task = msg.slice(5).trim()||'Deep Work';
+    addBubble(`🎯 *Focus Mode Activated!*\n\n📌 Task: *${task}*\n⏱ Duration: *25 minutes*\n\n🔕 Put your phone down!\n💪 You've got this! I'll ping you when done.\n\n✨ You'll earn +50 XP on completion!`,'b-bot');
+  } else if(cmd.startsWith('reschedule')){
+    const t = msg.slice(10).trim()||'task';
+    addBubble(`♻️ *AI Reschedule Suggestion*\n\n📌 ${t}\n📅 Suggested: *${dayOffset(2)}* at *10:00*\n💡 Good morning slot, no conflicts detected!`,'b-bot');
+  } else if(containsEventKeywords(cmd)){
+    const isClass = cmd.includes('class') || cmd.includes('lecture') || cmd.includes('pm to') || cmd.includes('am to');
+    const timeRange = cmd.match(/(\d+(?::\d+)?(?:am|pm))\s*to\s*(\d+(?::\d+)?(?:am|pm))/i);
+    addBubble(
+      `✅ *Event Created!*\n\n` +
+      `📌 *${extractTitle(msg)}*\n` +
+      (timeRange ? `📅 Detected: ${timeRange[1]} → ${timeRange[2]}\n` : `📅 Extracted date & time\n`) +
+      `⚡ Priority: high | 🏷 ${isClass?'lecture':'assignment'}\n` +
+      `🔔 Reminders: 1hr, 1 day before\n\n` +
+      `✨ *+25 XP earned!* (Total: 450 XP)\n` +
+      `🔥 *5-day streak!*`,
+      'b-bot'
+    );
+    // Show conflict alert sometimes
+    if(Math.random()>.6){
+      setTimeout(()=>{
+        addBubble(`⚠️ *Conflict Detected!*\n\nThis overlaps with an existing event by 30 min.\n💡 Next free slot: 16:30`,'b-bot');
+      },1000);
+    }
+  } else {
+    addBubble(`🤖 Couldn't detect an event. Try:\n"Math exam tomorrow at 10 AM"\n"Class 2pm to 4pm Friday"\n\nType *help* for commands.`,'b-bot');
+  }
+}
+
+function containsEventKeywords(msg){
+  return /exam|assignment|class|lecture|lab|project|reminder|due|submit|meeting|deadline|pm|am/.test(msg);
+}
+
+function extractTitle(msg){
+  return msg.replace(/reminder:|reminder|due|submit|on|at|tomorrow|today|am|pm/gi,'').trim().slice(0,40)||'New Event';
+}
+
+function addBubble(text,cls){
+  const d=document.createElement('div');
+  d.className=`bubble ${cls}`;
+  d.style.whiteSpace='pre-line';
+  d.innerHTML=text.replace(/\*([^*]+)\*/g,'<strong>$1</strong>');
+  win.appendChild(d);
+  win.scrollTop=win.scrollHeight;
+  return d;
+}
+
+function addTyping(){
+  const d=document.createElement('div');
+  d.className='bubble b-bot b-typing';
+  d.innerHTML='<div class="typing-dots"><span></span><span></span><span></span></div>';
+  win.appendChild(d);
+  win.scrollTop=win.scrollHeight;
+  return d;
+}
+
+function fill(msg){
+  document.getElementById('chat-input').value=msg;
+  document.getElementById('chat-input').focus();
+}
+
+function delay(ms){return new Promise(r=>setTimeout(r,ms))}
+
+// Animate flow nodes
+function animateFlow(){
+  const nodes = document.querySelectorAll('.flow-node');
+  let i=0;
+  setInterval(()=>{
+    nodes.forEach(n=>n.classList.remove('active'));
+    nodes[i%nodes.length].classList.add('active');
+    i++;
+  },1200);
+}
+
+// ── Init ───────────────────────────────────────────────
+loadDashboard();
+loadInsights();
+renderBadges();
+renderLeaderboard();
+renderExams();
+renderStreak(4);
+animateFlow();
+setInterval(loadDashboard, 30000);
+</script>
+</body>
+</html>

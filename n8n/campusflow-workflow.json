@@ -1,0 +1,144 @@
+{
+  "name": "CampusFlow Reminder Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "campusflow",
+        "responseMode": "onReceived",
+        "responseData": "allEntries"
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "campusflow-main"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst phone = body.phone || 'unknown';\nconst event = body.event || {};\nconst eventDateTime = new Date(`${event.date}T${event.time}:00`);\nconst reminders = (event.reminderMinutes || [60, 1440]).map(minutes => ({\n  phone,\n  event,\n  minutesBefore: minutes,\n  sendAt: new Date(eventDateTime.getTime() - minutes * 60000).toISOString(),\n  delayMs: Math.max(0, eventDateTime.getTime() - minutes * 60000 - Date.now())\n}));\nreturn reminders.map(r => ({ json: r }));"
+      },
+      "id": "a1b2c3d4-0002-0002-0002-000000000002",
+      "name": "Parse Reminders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "amount": "={{ Math.max(1, Math.round($json.delayMs / 60000)) }}",
+        "unit": "minutes"
+      },
+      "id": "a1b2c3d4-0003-0003-0003-000000000003",
+      "name": "Wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        680,
+        300
+      ],
+      "webhookId": "campusflow-wait"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://localhost:3000/api/whatsapp/send",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"to\": \"{{ $json.phone }}\",\n  \"message\": \"⏰ *CampusFlow Reminder!*\\n\\n📌 *{{ $json.event.title }}* is coming up!\\n📅 {{ $json.event.date }} at {{ $json.event.time }}\\n🏷 Category: {{ $json.event.category }}\\n\\nStay on track! 💪\"\n}"
+      },
+      "id": "a1b2c3d4-0004-0004-0004-000000000004",
+      "name": "Send WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconsole.log('✅ Reminder sent for:', d);\nreturn [{ json: { success: true, timestamp: new Date().toISOString() } }];"
+      },
+      "id": "a1b2c3d4-0005-0005-0005-000000000005",
+      "name": "Log Done",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Reminders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Reminders": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Log Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "instanceId": "campusflow"
+  },
+  "tags": []
+}
