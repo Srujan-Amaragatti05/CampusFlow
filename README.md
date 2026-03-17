@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🎓 CampusFlow — AI Student Productivity Platform
 
 > **Hackathon project** — WhatsApp + AI + Google Calendar + n8n automation
@@ -255,3 +256,6 @@ curl http://localhost:3000/health
 | Automation | n8n |
 | Frontend | Vanilla HTML/CSS/JS |
 | Tunnel | ngrok |
+=======
+# CampusFlow
+>>>>>>> 684064d5453e81e0cb75e393ea76301fbb647349
